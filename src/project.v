@@ -38,8 +38,8 @@ module tt_um_stochastic_adder_CL123abc(
     
     always @(posedge clk or posedge rst_n) begin
         if (rst_n) begin
-        lfsr_1 <= 31'd134223335; // Reset 1st counter
-	    lfsr_2 <= 31'd298673458; // Reset 2nd counter to different value
+        lfsr_1 <= 31'd17301504; // Reset 1st counter
+	    lfsr_2 <= 31'd268435584; // Reset 2nd counter to different value
 	    lfsr_sel <= 31'd123;
 	    SN_Bit_1 <= 1'b0; // Reset SN bits
 	    SN_Bit_2 <= 1'b0; 
