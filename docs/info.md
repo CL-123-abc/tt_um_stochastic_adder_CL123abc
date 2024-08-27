@@ -8,7 +8,7 @@ You can also include images in this folder and reference them in the markdown. E
 -->
 
 ## How it works
-Stochastic Multiplier. Using bipolar representation, takes 2 9-bit streams as input and outputs the average product in 9-bits.
+Stochastic Adder. Using bipolar representation, takes 2 9-bit streams as input and outputs the average sum in 9-bits.
 
 ## How to test
 Input 2 repeating streams of 9 bits that represent the numbers to be multiplied and output the result. May have to wait to check if result is accurate.
