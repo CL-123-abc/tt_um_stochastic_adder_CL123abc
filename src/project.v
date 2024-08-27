@@ -12,7 +12,7 @@
  
 `default_nettype none
 
-module tt_um_stochastic_multiplier_CL123abc(
+module stochastic_adder_CL123abc(
     input  wire [7:0] ui_in,    // Dedicated inputs
     output wire [7:0] uo_out,   // Dedicated outputs
     input  wire [7:0] uio_in,   // IOs: Input path
@@ -24,8 +24,8 @@ module tt_um_stochastic_multiplier_CL123abc(
 );
     wire [8:0] input_bitseq_1, input_bitseq_2; // Input sequence that determines the probabilities to be multiplied, 9 bits but in 10 bit intervals (10th for reset)
     wire [8:0] input_bout1, input_bout2; //Wire to connect the input checker to the main code, input checker limits the input values
-	reg [30:0] lfsr_1, lfsr_2; // LFSR to generate psuedorandom numbers
-    reg SN_Bit_1, SN_Bit_2, SN_Bit_Out; // SN bits
+	reg [30:0] lfsr_1, lfsr_2, lfsr_sel; // LFSR to generate psuedorandom numbers
+    reg SN_Bit_1, SN_Bit_2, SN_Bit_sel, SN_Bit_Out; // SN bits
     reg [17:0] clk_counter; // Used mainly to count how many cycles before output.
     reg [16:0] prob_counter;// Used as part of upcounter to count number of 1s
     reg over_flag; // Used as part of the upcounter to determine if overflow has happened
@@ -38,8 +38,9 @@ module tt_um_stochastic_multiplier_CL123abc(
     
     always @(posedge clk or posedge rst_n) begin
         if (rst_n) begin
-        lfsr_1 <= 31'd17301504; // Reset 1st counter
-	    lfsr_2 <= 31'd268435584; // Reset 2nd counter to different value
+        lfsr_1 <= 31'd134223335; // Reset 1st counter
+	    lfsr_2 <= 31'd298673458; // Reset 2nd counter to different value
+	    lfsr_sel <= 31'd123;
 	    SN_Bit_1 <= 1'b0; // Reset SN bits
 	    SN_Bit_2 <= 1'b0; 
         SN_Bit_Out <= 1'b0; 
@@ -56,13 +57,21 @@ module tt_um_stochastic_multiplier_CL123abc(
 	    lfsr_2[0] <= lfsr_2[27] ^ lfsr_2[30] ; 
         lfsr_2[30:1] <= lfsr_2[29:0] ;
         
+        lfsr_sel[0] <= lfsr_sel[27] ^ lfsr_sel[30] ; 
+        lfsr_sel[30:1] <= lfsr_sel[29:0] ;
+        
 	    // Comparator used to generate Bipolar Stochastic Number from 4-bit probability.
 	    // Compare RN from LFSR with probability wanted in BN and generate 1 when RN < BN
 	    SN_Bit_1 <= (lfsr_1[8:0] < input_bout1[8:0]) ;
 	    SN_Bit_2 <= (lfsr_2[8:0] < input_bout2[8:0]) ;
+	    SN_Bit_sel <= (lfsr_sel[8:0] < 8'b10000000); // 1/2 in unipolar representation to get 1/2 from input 1 and 1/2 from input 2
 	    
-	    // Stochastic Multiplier for Bipolar SN uses XNOR gate
-	    SN_Bit_Out <= !(SN_Bit_1 ^ SN_Bit_2) ;
+	    // Stochastic Adder for Bipolar SN uses MUX, and sel SN bits give the weight.
+	    if(SN_Bit_sel == 0) begin
+	    SN_Bit_Out <= SN_Bit_1;
+	    end else if (SN_Bit_sel == 1) begin
+	    SN_Bit_Out <= SN_Bit_2;
+	    end
 	    
 	    // To convert back to binary probability, use an up-counter, outputting the number of 1s in every 2^17 bits
 	    if (SN_Bit_Out == 1) begin
@@ -88,7 +97,7 @@ end
   // All output pins must be assigned. If not used, assign to 0.
   assign uo_out[7:0] = average[7:0]; //average [7:0] are the 8th to 1st bits of the 9bit probability.
   assign uio_out[1:0] = average[9:8]; // average[9] is the over_flag and if it is 1 something's wrong since we are multiplying fraction.
-  assign uio_out[7:2] = 6'b000000;    // average[8] is the MSB of the 9bit probability, being positive if 1 and negative if 0
+  assign uio_out[7:2] = 6'b0;    // average[8] is the MSB of the 9bit probability, being positive if 1 and negative if 0
   assign uio_oe[7:0]  = 8'b11111111;
   // List all unused inputs to prevent warnings
   wire _unused = &{ena, ui_in[7:2], uio_in, 1'b0}; 
@@ -104,8 +113,8 @@ reg enable; // Only takes input when enable is 1
 
 always @(posedge clk or posedge rst_n)begin
     if(rst_n) begin // Reset everything
-    output_bitseq <= 9'b0;
-    output_bitcounter <= 9'b0;
+    output_bitseq <= 17'b0;
+    output_bitcounter <= 17'b0;
     clk_bitcounter <= 17'b0;
     enable <= 1'b1;
     end
@@ -136,13 +145,12 @@ endmodule
 module input_checker(input_bitseq, output_bitseq); // Will only be used for the self multiplier
 input wire [8:0] input_bitseq;
 output reg [8:0] output_bitseq;
-assign output_bitseq = input_bitseq;
 always@* begin
     //if(input_bitseq > 9'b100001111) 
         //output_bitseq <= 9'b100001111;
     //else if (input_bitseq < 9'b011110001)
         //output_bitseq <= 9'b011110001;
     //else
-        //output_bitseq <= input_bitseq;
+        output_bitseq <= input_bitseq;
 end
 endmodule
